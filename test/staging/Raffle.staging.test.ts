@@ -1,11 +1,23 @@
-const { assert, expect } = require("chai")
-const { getNamedAccounts, ethers, network } = require("hardhat")
-const { developmentChains } = require("../../helper-hardhat-config")
+import {
+    assert,
+    expect
+} from 'chai';
+import { BigNumber } from 'ethers';
+import {
+    network,
+    ethers,
+    getNamedAccounts
+} from 'hardhat';
+
+import { developmentChains } from '../../helper-hardhat-config';
+import { Raffle } from '../../typechain-types';
 
 developmentChains.includes(network.name)
     ? describe.skip
     : describe("Raffle Staging Tests", () => {
-      let raffle, raffleEntranceFee, deployer;
+      let raffle: Raffle;
+      let raffleEntranceFee: BigNumber;
+      let deployer: string;
 
       beforeEach(async () => {
         deployer = (await getNamedAccounts()).deployer;
@@ -21,7 +33,7 @@ developmentChains.includes(network.name)
               const accounts = await ethers.getSigners();
 
               console.log("Setting up Listener...");
-              await new Promise(async (resolve, reject) => {
+              await new Promise<void>(async (resolve, reject) => {
                   // setup listener before we enter the raffle
                   // Just in case the blockchain moves REALLY fast
                   raffle.once("WinnerPicked", async () => {

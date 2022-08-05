@@ -1,24 +1,38 @@
-const { network, deployments, ethers } = require("hardhat");
-const { assert, expect } = require("chai");
+import {
+  network,
+  deployments,
+  ethers
+} from 'hardhat';
+import {
+  assert,
+  expect
+} from 'chai';
+import { BigNumber } from 'ethers';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
-const {
+import {
   developmentChains,
   networkConfig
-} = require("../../helper-hardhat-config");
+} from '../../helper-hardhat-config';
+import {
+  Raffle,
+  VRFCoordinatorV2Mock
+} from "../../typechain-types";
+
 
 !developmentChains.includes(network.name)
     ? describe.skip
     : describe("Raffle unit test", () => {
-      const chainId = network.config.chainId;
+      const chainId = network.config.chainId!;
 
-      let deployer;
-      let player;
-      let accounts;
+      let deployer: SignerWithAddress;
+      let player: SignerWithAddress;
+      let accounts: SignerWithAddress[];
 
-      let raffle;
-      let vrfCoordinatorV2Mock;
-      let raffleEntranceFee;
-      let interval;
+      let raffle: Raffle;
+      let vrfCoordinatorV2Mock: VRFCoordinatorV2Mock;
+      let raffleEntranceFee: BigNumber;
+      let interval: BigNumber;
 
       beforeEach(async () => {
         accounts = await ethers.getSigners();
@@ -142,7 +156,7 @@ const {
           const txResponse = await raffle.performUpkeep("0x");
           const txReceipt = await txResponse.wait(1);
           const raffleState = await raffle.getRaffleState();
-          const requestId = txReceipt.events[1].args.requestId;
+          const requestId = txReceipt!.events![1].args!.requestId;
 
           assert(requestId.toNumber() > 0);
           assert(raffleState == 1);
@@ -173,7 +187,7 @@ const {
             const startingTimeStamp = await raffle.getLastTimeStamp();
 
             // This will be more important for our staging tests...
-            await new Promise(async (resolve, reject) => {
+            await new Promise<void>(async (resolve, reject) => {
                 raffle.once("WinnerPicked", async () => { // event listener for WinnerPicked
                     console.log("WinnerPicked event fired!")
                     // assert throws an error if it fails, so we need to wrap
@@ -214,7 +228,7 @@ const {
                 const startingBalance = await accounts[2].getBalance();
 
                 await vrfCoordinatorV2Mock.fulfillRandomWords(
-                    txReceipt.events[1].args.requestId,
+                    txReceipt!.events![1].args!.requestId,
                     raffle.address
                 );
             });

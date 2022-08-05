@@ -1,37 +1,41 @@
-const {
-  network,
-  ethers
-} = require("hardhat");
-const {
-    networkConfig,
-    developmentChains,
-} = require("../helper-hardhat-config");
-const { verify } = require("../utils/verify");
+
+import { ethers } from "hardhat";
+import { DeployFunction } from "hardhat-deploy/types"
+import { HardhatRuntimeEnvironment } from "hardhat/types"
+
+import {
+  networkConfig,
+  developmentChains,
+  VERIFICATION_BLOCK_CONFIRMATIONS,
+} from '../helper-hardhat-config';
+import verify from "../utils/verify";
+import { VRFCoordinatorV2Mock } from '../typechain-types';
 
 const VRF_SUB_FUND_AMOUNT = ethers.utils.parseEther("30");
 
-module.exports = async function ({ getNamedAccounts, deployments }) {
+const deployRaffle: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts, network, ethers } = hre;
   const { deploy, log } = deployments;
   const { deployer } = await getNamedAccounts();
-  const chainId = network.config.chainId;
+  const chainId = network.config.chainId!;
 
-  let vrfCoordinatorV2Mock;
-  let vrfCoordinatorV2addres;
-  let subscriptionId;
+  let vrfCoordinatorV2Mock: VRFCoordinatorV2Mock;
+  let vrfCoordinatorV2addres: string;
+  let subscriptionId: string;
 
   if (developmentChains.includes(network.name)) {
     vrfCoordinatorV2Mock = await ethers.getContract('VRFCoordinatorV2Mock');
     vrfCoordinatorV2addres = vrfCoordinatorV2Mock.address;
 
     const transactionResponse = await vrfCoordinatorV2Mock.createSubscription();
-    const transactionReceipt = await transactionResponse.wait(1)
-    subscriptionId = transactionReceipt.events[0].args.subId
+    const transactionReceipt = await transactionResponse.wait(1);
+    subscriptionId = transactionReceipt!.events![0].args!.subId;
 
     vrfCoordinatorV2Mock.fundSubscription(subscriptionId, VRF_SUB_FUND_AMOUNT);
   }
   else {
-    vrfCoordinatorV2addres = networkConfig[chainId]["vrfCoordinatorV2"];
-    subscriptionId = networkConfig[chainId]["subscriptionId"];
+    vrfCoordinatorV2addres = networkConfig[chainId]["vrfCoordinatorV2"]!;
+    subscriptionId = networkConfig[chainId]["subscriptionId"]!;
   }
 
   const entranceFee = networkConfig[chainId]["entranceFee"];
@@ -45,19 +49,24 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
     gasLane,
     subscriptionId,
     callbackGasLimit,
-    interval
+    interval,
   ];
+
+  const waitBlockConfirmations = developmentChains.includes(network.name)
+    ? 1
+    : VERIFICATION_BLOCK_CONFIRMATIONS;
 
   const raffle = await deploy('Raffle', {
     from: deployer,
     args,
     log: true,
-    waitConfirmations: network.config.blockConfirmations || 1
+    waitConfirmations: waitBlockConfirmations
   });
 
   log(`Raffle contract is deployed: ${raffle.address}`);
 
   if (developmentChains.includes(network.name)) {
+    vrfCoordinatorV2Mock = await ethers.getContract('VRFCoordinatorV2Mock');
     await vrfCoordinatorV2Mock.addConsumer(subscriptionId, raffle.address);
 
     log('Consumer is added');
@@ -72,5 +81,5 @@ module.exports = async function ({ getNamedAccounts, deployments }) {
 
   log("----------------------------------");
 }
-
-module.exports.tags = ["all", "raffle"];
+export default deployRaffle;
+deployRaffle.tags = ["all", "raffle"];
