@@ -19,7 +19,6 @@ import {
   VRFCoordinatorV2Mock
 } from "../../typechain-types";
 
-
 !developmentChains.includes(network.name)
     ? describe.skip
     : describe("Raffle unit test", () => {
